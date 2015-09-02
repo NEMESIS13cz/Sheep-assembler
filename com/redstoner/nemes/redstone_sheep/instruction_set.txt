@@ -23,17 +23,17 @@ INCF       0010 10df ffff fffs      Increment F
 INCFSZ     0011 11df ffff fffs      Increment F, skip next instr if 0
 IORWF      0001 00df ffff fffx      Inclusive OR W with F
 MOVF       0010 00df ffff fffx      Move F
-MOVWF      0000 001f ffff fffx      Move W to F
+MOVWF      0000 001f ffff fffd      Move W to F
 NOP        0000 000x x000 000x      No operation
 RLF        0011 01df ffff fffx      Shift F left through Carry Flag
 RRF        0011 00df ffff fffx      Shift F right through Carry Flag
 SUBWF      0000 10df ffff fffs      Subtract W from F
 SWAPF      0011 10df ffff fffx      Swap bytes in F
 XORWF      0001 10df ffff fffx      Exclusive OR W with F
-BCF        0100 bbbf ffff fffx      Clear bit in F
-BSF        0101 bbbf ffff fffx      Set bit in F
-BTFSC      0110 bbbf ffff fffx      Test bit in F, skip next instr if 0
-BTFSS      0111 bbbf ffff fffx      Test bit in F, skip next instr if 1
+BCF        0100 bbbb ffff ffff      Clear bit in F
+BSF        0101 bbbb ffff ffff      Set bit in F
+BTFSC      0110 bbbb ffff ffff      Test bit in F, skip next instr if 0
+BTFSS      0111 bbbb ffff ffff      Test bit in F, skip next instr if 1
 ADDLW      1111 1xkk kkkk kk0s      Add 8 bit literal and W
 ANDLW      1110 01kk kkkk kk0x      AND literal and W
 CALL       100k kkkk kkkx xx01      Call subroutine
@@ -44,7 +44,7 @@ MOVLW      1100 xxkk kkkk kk0x      Move literal to W
 RETFIE     0000 0000 0010 01xx      Return from interrupt
 RETLW      1101 xxkk kkkk kk0x      Return with literal in W
 RETURN     0000 0000 0010 00xx      Return from subroutine
-SLEEP      0000 0001 1000 11xx      Turn off the clock (without clearing memory)
+SLEEP      0000 0001 1000 11xx      Turn off the clock
 SUBLW      1111 0xkk kkkk kk0s      Subtract W from literal
 XORLW      1110 10kk kkkk kk0x      Exclusive OR literal with W
 
