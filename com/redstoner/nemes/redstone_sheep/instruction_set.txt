@@ -1,0 +1,127 @@
+### REDSTONE SHEEP INSTRUCTION AND REGISTER SET ###
+
+x - ignore
+b - bit position in bitwise operations
+f - memory address
+d - destination select (0 and no address = register W, 0 and address = GPRs, 1 = memory) *
+k - literal value
+s - sign bit
+p - program ID (BCX only)
+c - thread ID (MCX only)
+
+mnemonic       instruction          description
+
+--base IS
+ADDWF      0001 11df ffff fffs      Add W and F
+ANDWF      0001 01df ffff fffx      AND W with F
+CLRF       0000 011f ffff fffx      Clear F
+CLRW       0000 010x xxxx xxxx      Clear W
+COMF       0010 01df ffff fffs      Complement F
+DECF       0000 11df ffff fffs      Decrement F
+DECFSZ     0010 11df ffff fffs      Decrement F, skip next instr if 0
+INCF       0010 10df ffff fffs      Increment F
+INCFSZ     0011 11df ffff fffs      Increment F, skip next instr if 0
+IORWF      0001 00df ffff fffx      Inclusive OR W with F
+MOVF       0010 00df ffff fffx      Move F
+MOVWF      0000 001f ffff fffx      Move W to F
+NOP        0000 000x x000 000x      No operation
+RLF        0011 01df ffff fffx      Shift F left through Carry Flag
+RRF        0011 00df ffff fffx      Shift F right through Carry Flag
+SUBWF      0000 10df ffff fffs      Subtract W from F
+SWAPF      0011 10df ffff fffx      Swap bytes in F
+XORWF      0001 10df ffff fffx      Exclusive OR W with F
+BCF        0100 bbbf ffff fffx      Clear bit in F
+BSF        0101 bbbf ffff fffx      Set bit in F
+BTFSC      0110 bbbf ffff fffx      Test bit in F, skip next instr if 0
+BTFSS      0111 bbbf ffff fffx      Test bit in F, skip next instr if 1
+ADDLW      1111 1xkk kkkk kk0s      Add 8 bit literal and W
+ANDLW      1110 01kk kkkk kk0x      AND literal and W
+CALL       100k kkkk kkkx xx01      Call subroutine
+CLRWDT     0000 0001 1001 00xx      Clear Watchdog Timer
+GOTO       101k kkkk kkkx xx0x      Go to address
+IORLW      1110 00kk kkkk kk0x      Inclusive OR literal and W
+MOVLW      1100 xxkk kkkk kk0x      Move literal to W
+RETFIE     0000 0000 0010 01xx      Return from interrupt
+RETLW      1101 xxkk kkkk kk0x      Return with literal in W
+RETURN     0000 0000 0010 00xx      Return from subroutine
+SLEEP      0000 0001 1000 11xx      Turn off the clock (without clearing memory)
+SUBLW      1111 0xkk kkkk kk0s      Subtract W from literal
+XORLW      1110 10kk kkkk kk0x      Exclusive OR literal with W
+
+--FPX (Floating Point Extensions)
+FADDWF     1000 0dff ffff ff1x      Add float W and float F
+FCOMF      1000 1dff ffff ff1x      Complement float F
+FDECF      1001 0dff ffff ff1x      Decrement float F
+FDECFSZ    1001 1dff ffff ff1x      Decrement float F, skip next instr if 0
+FINCF      1010 0dff ffff ff1x      Increment float F
+FINCFSZ    1010 1dff ffff ff1x      Increment float F, skip next instr if 0
+FSUBWF     1011 0dff ffff ff1x      Subtract float W from float F
+FMULWF     1011 1dff ffff ff1x      Multiply float F by float W
+FDIVWF     1100 0dff ffff ff1x      Divide float F by float W
+FPTINT     1100 1dff ffff ff1s      Convert float F to integer
+INTTFP     1101 0dff ffff ff1s      Convert integer F to float
+FCOMPWF    1101 1xxx xxxx xx1x      Compare float F with float W
+
+--BCX (Basic Compute Extensions)
+MULWF      1000 sdff ffff ff01      Multiply F by W
+DIVWF      1001 sdff ffff ff01      Divide F by W, remainder will be saved into BX
+BOOL       1010 sdff ffff ff01      Save FLAGS as a boolean
+STO        1011 ppkk kkkk kk01      Set translation offset
+SHFTRN     1100 xdff ffff ff01      Shift F right by W
+SHFTLN     1101 xdff ffff ff01      Shift F left by W
+SHFTRR     1110 xdff ffff ff01      Shift F right by W, loop bits back
+SHFTLR     1111 xdff ffff ff01      Shift F left by W, loop bits back
+COMPWF     1101 sdff ffff ff10      Compare F with W
+LOADLW     1110 xdff ffff ff10      Save a 16 bit literal into F (literal is the data right after this instruction)
+GOTOF      1111 xxkk kkkk kk10      Go to address if true (conditions are an image of the FLAGS register in a 16 bit word right after this instruction)
+
+--MCX (Multi-Core Extensions)
+SBAP       1000 cckk kkkk kk10      Set literal as begin address pointer for thread
+STTH       1001 ccxx xxxx xx10      Start thread
+SPTH       1010 ccxx xxxx xx10      Stop thread
+LOCK       1011 xxxx xxxx xx10      Lock threads
+UNLOCK     1100 xxxx xxxx xx10      Unlock threads
+
+REGISTERS:
+
+f ∈ 0-255
+  RAM
+W register
+f ∈ 0-7 General Purpose Registers
+  AX (Accumulator), BX (Base), CX (Counter), DX (Data), R5, R6, R7, R8
+f ∈ 8-11 Dedicated counter registers
+  CR1, CR2, CR3, CR4
+f ∈ 12-18
+  FLAGS (flags registers)
+  F > W, F < W, F == W, HDD_done_seeking, F > W (float), F < W (float), F == W (float)
+f = 19
+  Stack register
+f ∈ 20-23 Timer registers
+  TR1, TR2, TR3, TR4
+f ∈ 24-28 Interrupt GOTO registers *
+  PNN (Pan-net port - 4 I/O), GPIO (General purpose I/O - 4 I/O), BWIO (Bit-wise I/O - 16 I/O), ETI (External thread interrupt - from other cores), EXI (Exception interrupt - caused in code)
+f ∈ 29-52  I/O ports
+  Pan-net  - PNN1, PNN2, PNN3, PNN4 (29-32)
+  General  - GPIO1, GPIO2, GPIO3, GPIO4 (IN - 33-36)
+  Bit-wise - BWIO1, BWIO2, BWIO3, BWIO4, BWIO5, BWIO6, BWIO7, BWIO8, BWIO9, BWIO10, BWIO11, BWIO12, BWIO13, BWIO14, BWIO15, BWIO16 (37-52)
+
+* MORE ON IN-INSTRUCTION ADDRESSING
+
+if d is equal to 0 and all address bits (f) are equal to 0, result -> W
+if d is equal to 1, result -> RAM [ffff ffff]
+if d is equal to 0 and at least one address bit is equal to 1, result -> GPR [ffff ffff - 1]
+  (In order to access AX (register 0), 1 has to be added onto the GPR address for the decoder to not default onto register W)
+
+* MORE ON INTERRUPTS
+
+Upon an interrupt, all GPRs, counters, flags and the W register will be pushed into the stack in the order W, AX, BX, CX, DX, R5, R6, R7, R8, CR1, CR2, CR3, CR4, FLAGS and will all be loaded back after RETFIE is called. Special interrupt information will be placed in the W register, that being port address for PNN, GPIO and BWIO, Core ID for ETI and exception ID for EXI.
+
+EXCEPTIONS:
+
+mnemonic     ID     cause
+
+#AOF         0      ALU overflow
+#AUF         1      ALU underflow
+#MOF         2      memory overflow
+#SOF         3      stack overflow
+#DBZ         4      division by zero
