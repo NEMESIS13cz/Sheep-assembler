@@ -3,9 +3,12 @@ package com.redstoner.nemes.redstone_sheep;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
 
 import javax.swing.JTextArea;
 
@@ -16,8 +19,26 @@ public class FileManager {
 			BufferedWriter writer = new BufferedWriter(new FileWriter(new File(name + ".rsasm"))); // raw sheep assembly
 			writer.write(raw);
 			writer.close();
-			BufferedWriter writer2 = new BufferedWriter(new FileWriter(new File(name + ".csasm"))); // compiled sheep assembly
-			writer2.write(compiled);
+			OutputStream writer2 = new FileOutputStream(name + ".csasm", false); // compiled sheep assembly
+			
+			ArrayList<Byte> data = new ArrayList<Byte>();
+			char[] chars = compiled.toCharArray();
+			String buffer = "";
+			
+			for (int i = 0; i < compiled.length(); i++) {
+				if (chars[i] == '0' || chars[i] == '1') {
+					buffer += chars[i];
+					if (buffer.length() == 8) {
+						data.add(Byte.parseByte(buffer, 2));
+						buffer = "";
+					}
+				}
+			}
+			byte[] byteArray = new byte[data.size()];
+			for (int i = 0; i < data.size(); i++) {
+				byteArray[i] = data.get(i);
+			}
+			writer2.write(byteArray);
 			writer2.close();
 		} catch (IOException e) {
 			e.printStackTrace();
