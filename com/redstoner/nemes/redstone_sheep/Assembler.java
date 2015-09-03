@@ -15,6 +15,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Assembler {
@@ -51,7 +53,7 @@ public class Assembler {
 			
 			public void actionPerformed(ActionEvent e) {
 				JFileChooser browser = new JFileChooser();
-				browser.addChoosableFileFilter(new FileNameExtensionFilter("Redstone Sheep Assembly file", ".rsasm"));
+				browser.addChoosableFileFilter(new FileNameExtensionFilter("Redstone Sheep Assembly file", "rsasm"));
 				browser.showSaveDialog(null);
 				File f = browser.getSelectedFile();
 				if (f != null) {
@@ -81,6 +83,17 @@ public class Assembler {
 	}
 	
 	public static void main(String[] args) {
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (UnsupportedLookAndFeelException e) {
+			e.printStackTrace();
+		}
 		new Assembler();
 	}
 }

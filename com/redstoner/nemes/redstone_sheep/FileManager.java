@@ -29,7 +29,7 @@ public class FileManager {
 				if (chars[i] == '0' || chars[i] == '1') {
 					buffer += chars[i];
 					if (buffer.length() == 8) {
-						data.add(Byte.parseByte(buffer, 2));
+						data.add((byte)Integer.parseInt(buffer, 2));
 						buffer = "";
 					}
 				}
