@@ -10,7 +10,23 @@ public class Resolver {
 		map.clear();
 		String[] lines = text.split("\n");
 		for (int i = 0; i < lines.length; i++) {
-			lines[i] += " ";
+			String s = lines[i];
+			String res = "";
+			boolean last = false;
+			boolean isFirst = true;
+			for (char c : s.toCharArray()) {
+				if (c == ' ' || c == '	') {
+					if (!last && !isFirst) {
+						res += c;
+						last = true;
+					}
+				}else{
+					last = false;
+					isFirst = false;
+					res += c;
+				}
+			}
+			lines[i] = res + " ";
 		}
 		String compiled = "";
 		int address = 0;
@@ -480,6 +496,7 @@ public class Resolver {
 						System.err.println("Address appender: Address out of range! (" + buffer + ")");
 						return;
 					}
+					buffer = "";
 					continue;
 				}
 				buffer += c;
