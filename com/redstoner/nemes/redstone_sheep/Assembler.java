@@ -4,10 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -17,7 +13,6 @@ import java.io.IOException;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -27,7 +22,6 @@ import javax.swing.JTextPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
@@ -35,8 +29,8 @@ import javax.swing.text.StyleContext;
 
 public class Assembler implements Runnable {
 	
-	private static boolean darkMode;
-	private static JTextPane console;
+	protected static boolean darkMode;
+	protected static JTextPane console;
 	
 	public void run() {
 		try {
@@ -46,109 +40,81 @@ public class Assembler implements Runnable {
 			e.printStackTrace();
 		}
 		loadConfig();
+		//Setup frame and main panel
 		JFrame frame = new JFrame();
 		JPanel panel = new JPanel();
 		frame.setTitle("Redstone Sheep Assembler");
 		frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		frame.setPreferredSize(new Dimension(600, 400));
-		WindowListener windowListener = new WindowListener() {
-
-			public void windowOpened(WindowEvent e) {}
-			public void windowClosing(WindowEvent e) {
-				saveConfig();
-			}
-			public void windowClosed(WindowEvent e) {}
-			public void windowIconified(WindowEvent e) {}
-			public void windowDeiconified(WindowEvent e) {}
-			public void windowActivated(WindowEvent e) {}
-			public void windowDeactivated(WindowEvent e) {}
-		};
 		
 		frame.getContentPane().add(panel);
-		frame.addWindowListener(windowListener);
+		frame.addWindowListener(Helpers.getWindowListener());
 		
 		BoxLayout layout = new BoxLayout(panel, BoxLayout.Y_AXIS);
 		panel.setLayout(layout);
 		
-		JTextArea text = new JTextArea();
-		JScrollPane pane = new JScrollPane(text);
-		JButton button = new JButton("Assemble");
-		JButton load = new JButton("Load file");
-		JTextField name = new JTextField("program");
-		JPanel buttonPanel = new JPanel();
-		JButton mode = new JButton();
-		JPanel windowPanel = new JPanel();
+		//Create GUI elements
+		JPanel bottomPanel = new JPanel();
+		JPanel topPanel = new JPanel();
+		
 		console = new JTextPane();
-		JScrollPane consolePane = new JScrollPane(console);
-		JButton save = new JButton("Save");
 		
-		ActionListener listener = new ActionListener() {
-			
-			public void actionPerformed(ActionEvent e) {
-				Resolver.resolve(text.getText(), name.getText());
-			}
-		};
+		JTextArea codeTextArea = new JTextArea();
+
+		JScrollPane codeScrollPane = new JScrollPane(codeTextArea);
+		JScrollPane consoleScrollPane = new JScrollPane(console);
+
+		JTextField fileNameTextField = new JTextField("program");
 		
-		ActionListener listener2 = new ActionListener() {
-			
-			public void actionPerformed(ActionEvent e) {
-				FileManager.write(text.getText(), name.getText());
-			}
-		};
+		JButton assembleButton = new JButton("Assemble");
+		JButton loadButton = new JButton("Load file");
+		JButton modeSwitchButton = new JButton();
+		JButton saveButton = new JButton("Save");
 		
-		ActionListener loadListener = new ActionListener() {
-			
-			public void actionPerformed(ActionEvent e) {
-				JFileChooser browser = new JFileChooser();
-				browser.addChoosableFileFilter(new FileNameExtensionFilter("Redstone Sheep Assembly file", "rsasm"));
-				browser.showSaveDialog(null);
-				File f = browser.getSelectedFile();
-				if (f != null) {
-					FileManager.read(text, f);
-				}
-			}
-		};
+		//Setup panels
+		BoxLayout bottomPanelLayout = new BoxLayout(bottomPanel, BoxLayout.X_AXIS);
+		bottomPanel.setLayout(bottomPanelLayout);
 		
-		ActionListener modeListener = new ActionListener() {
-			
-			public void actionPerformed(ActionEvent e) {
-				darkMode = !darkMode;
-				init(darkMode, panel, mode, text, pane, consolePane);
-			}
-		};
+		BorderLayout topPanelLayout = new BorderLayout();
+		topPanel.setLayout(topPanelLayout);
 		
-		BoxLayout buttonLayout = new BoxLayout(buttonPanel, BoxLayout.X_AXIS);
-		buttonPanel.setLayout(buttonLayout);
-		BorderLayout windowLayout = new BorderLayout();
-		windowPanel.setLayout(windowLayout);
-		button.addActionListener(listener);
-		load.addActionListener(loadListener);
-		mode.addActionListener(modeListener);
-		save.addActionListener(listener2);
-		init(darkMode, panel, mode, text, pane, consolePane);
-		text.setFont(new Font("Courier New", 0, 20));
+		//Add button action listeners
+		assembleButton.addActionListener(Helpers.getAssembleButtonActionListener(codeTextArea, fileNameTextField));
+		loadButton.addActionListener(Helpers.getLoadButtonActionListener(codeTextArea));
+		modeSwitchButton.addActionListener(Helpers.getModeSwitchButtonActionListener(topPanel, modeSwitchButton, codeTextArea, codeScrollPane, consoleScrollPane));
+		saveButton.addActionListener(Helpers.getSaveButtonActionListener(codeTextArea, fileNameTextField));
+		
+		//Set properties of GUI elements
 		console.setEditable(false);
 		console.setPreferredSize(new Dimension(300, Integer.MAX_VALUE));
-		name.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 		
-		panel.add(windowPanel);
-		panel.add(buttonPanel);
-		
-		windowPanel.add(pane);
-		windowPanel.add(consolePane, BorderLayout.EAST);
-		
-		buttonPanel.add(button);
-		buttonPanel.add(save);
-		buttonPanel.add(load);
-		buttonPanel.add(name);
-		buttonPanel.add(mode);
+		codeTextArea.setFont(new Font("Courier New", 0, 20));
 
+		fileNameTextField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+		
+		init(darkMode, panel, modeSwitchButton, codeTextArea, codeScrollPane, consoleScrollPane);
+		
+		//Add GUI elements to panels
+		topPanel.add(codeScrollPane);
+		topPanel.add(consoleScrollPane, BorderLayout.EAST);
+		
+		bottomPanel.add(assembleButton);
+		bottomPanel.add(saveButton);
+		bottomPanel.add(loadButton);
+		bottomPanel.add(fileNameTextField);
+		bottomPanel.add(modeSwitchButton);
+		
+		panel.add(topPanel);
+		panel.add(bottomPanel);
+		
+		//Final setup
 		frame.pack();
 		frame.setLocationRelativeTo(null);
+		
 		frame.setVisible(true);
 	}
 	
-    private static void appendToPane(String msg, Color c) {
+    private static void appendToConsole(String msg, Color c) {
         StyleContext sc = StyleContext.getDefaultStyleContext();
         AttributeSet aset = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, c);
         
@@ -164,33 +130,33 @@ public class Assembler implements Runnable {
     }
     
     public static void println(String msg) {
-    	appendToPane(msg + "\n", Color.BLACK);
+    	appendToConsole(msg + "\n", Color.BLACK);
     	System.out.println(msg);
     }
     
     public static void errln(String msg) {
-    	appendToPane(msg + "\n", Color.RED);
+    	appendToConsole(msg + "\n", Color.RED);
     	System.err.println(msg);
     }
 	
-	private static void init(boolean dark, JPanel panel, JButton mode, JTextArea text, JScrollPane pane, JScrollPane consolePane) {
+	protected static void init(boolean dark, JPanel panel, JButton modeSwitchButton, JTextArea codeTextArea, JScrollPane codeScrollPane, JScrollPane consoleScrollPane) {
 		if (dark) {
-			mode.setText("Normal");
+			modeSwitchButton.setText("Normal");
 			panel.setBackground(Color.BLACK);
-			text.setForeground(Color.GRAY);
-			text.setBackground(Color.BLACK);
-			text.setCaretColor(Color.WHITE);
-			pane.setBackground(Color.BLACK);
-			consolePane.setBackground(Color.GRAY);
+			codeTextArea.setForeground(Color.GRAY);
+			codeTextArea.setBackground(Color.BLACK);
+			codeTextArea.setCaretColor(Color.WHITE);
+			codeScrollPane.setBackground(Color.BLACK);
+			consoleScrollPane.setBackground(Color.GRAY);
 			console.setBackground(Color.GRAY);
 		}else{
-			mode.setText("Dark");
+			modeSwitchButton.setText("Dark");
 			panel.setBackground(Color.WHITE);
-			text.setForeground(Color.BLACK);
-			text.setBackground(Color.WHITE);
-			text.setCaretColor(Color.GRAY);
-			pane.setBackground(Color.WHITE);
-			consolePane.setBackground(Color.LIGHT_GRAY);
+			codeTextArea.setForeground(Color.BLACK);
+			codeTextArea.setBackground(Color.WHITE);
+			codeTextArea.setCaretColor(Color.GRAY);
+			codeScrollPane.setBackground(Color.WHITE);
+			consoleScrollPane.setBackground(Color.LIGHT_GRAY);
 			console.setBackground(Color.LIGHT_GRAY);
 		}
 	}
