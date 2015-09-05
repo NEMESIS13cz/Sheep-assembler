@@ -20,7 +20,9 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Assembler {
-
+	
+	private static boolean darkMode = false;
+	
 	public Assembler() {
 		JFrame frame = new JFrame();
 		JPanel panel = new JPanel();
@@ -41,6 +43,7 @@ public class Assembler {
 		JButton load = new JButton("Load file");
 		JTextField name = new JTextField("program");
 		JPanel buttonPanel = new JPanel();
+		JButton mode = new JButton();
 		
 		ActionListener listener = new ActionListener() {
 			
@@ -62,15 +65,22 @@ public class Assembler {
 			}
 		};
 		
+		ActionListener modeListener = new ActionListener() {
+			
+			public void actionPerformed(ActionEvent e) {
+				darkMode = !darkMode;
+				init(darkMode, panel, mode, load, button, name, buttonPanel, text, pane);
+			}
+		};
+		
 		BoxLayout buttonLayout = new BoxLayout(buttonPanel, BoxLayout.X_AXIS);
 		buttonPanel.setLayout(buttonLayout);
 		button.addActionListener(listener);
 		load.addActionListener(loadListener);
+		mode.addActionListener(modeListener);
+		init(darkMode, panel, mode, load, button, name, buttonPanel, text, pane);
 		text.setFont(new Font("Courier New", 0, 20));
-		text.setForeground(Color.GRAY);
-		text.setBackground(Color.BLACK);
-		pane.setBackground(Color.BLACK);
-		name.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+		name.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
 		
 		panel.add(pane);
 		panel.add(buttonPanel);
@@ -78,20 +88,33 @@ public class Assembler {
 		buttonPanel.add(button);
 		buttonPanel.add(load);
 		buttonPanel.add(name);
+		buttonPanel.add(mode);
 		
 		frame.setVisible(true);
+	}
+	
+	private static void init(boolean dark, JPanel panel, JButton mode, JButton load, JButton button, JTextField name, JPanel buttonPanel, JTextArea text, JScrollPane pane) {
+		if (dark) {
+			mode.setText("Normal");
+			panel.setBackground(Color.BLACK);
+			text.setForeground(Color.GRAY);
+			text.setBackground(Color.BLACK);
+			text.setCaretColor(Color.WHITE);
+			pane.setBackground(Color.BLACK);
+		}else{
+			mode.setText("Dark");
+			panel.setBackground(Color.WHITE);
+			text.setForeground(Color.BLACK);
+			text.setBackground(Color.WHITE);
+			text.setCaretColor(Color.GRAY);
+			pane.setBackground(Color.WHITE);
+		}
 	}
 	
 	public static void main(String[] args) {
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (InstantiationException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		} catch (UnsupportedLookAndFeelException e) {
+		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException e) {
 			e.printStackTrace();
 		}
 		new Assembler();
