@@ -10,13 +10,15 @@ import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JTextPane;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Helpers {
 
-	public static ActionListener getAssembleButtonActionListener(JTextArea text, JTextField name) {
+	public static ActionListener getAssembleButtonActionListener(JTextPane text, JTextField name) {
 		return new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
@@ -25,7 +27,7 @@ public class Helpers {
 		};
 	}
 	
-	public static ActionListener getSaveButtonActionListener(JTextArea text, JTextField name) {
+	public static ActionListener getSaveButtonActionListener(JTextPane text, JTextField name) {
 		return new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
@@ -34,7 +36,7 @@ public class Helpers {
 		};
 	}
 	
-	public static ActionListener getLoadButtonActionListener(JTextArea text) {
+	public static ActionListener getLoadButtonActionListener(JTextPane text) {
 		return new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
@@ -49,7 +51,7 @@ public class Helpers {
 		};
 	}
 	
-	public static ActionListener getModeSwitchButtonActionListener(JPanel panel, JButton mode, JTextArea text, JScrollPane pane, JScrollPane consolePane) {
+	public static ActionListener getModeSwitchButtonActionListener(JPanel panel, JButton mode, JTextPane text, JScrollPane pane, JScrollPane consolePane) {
 		return new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
@@ -71,6 +73,23 @@ public class Helpers {
 			public void windowDeiconified(WindowEvent e) {}
 			public void windowActivated(WindowEvent e) {}
 			public void windowDeactivated(WindowEvent e) {}
+		};
+	}
+	
+	public static DocumentListener getDocumentListener() {
+		return new DocumentListener() {
+
+			public void insertUpdate(DocumentEvent e) {
+				Assembler.hasChanged = true;
+			}
+
+			public void removeUpdate(DocumentEvent e) {
+				Assembler.hasChanged = true;
+			}
+
+			public void changedUpdate(DocumentEvent e) {
+				Assembler.hasChanged = true;
+			}
 		};
 	}
 }

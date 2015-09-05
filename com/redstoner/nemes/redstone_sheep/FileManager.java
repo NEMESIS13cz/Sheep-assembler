@@ -1,5 +1,6 @@
 package com.redstoner.nemes.redstone_sheep;
 
+import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -10,7 +11,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 
-import javax.swing.JTextArea;
+import javax.swing.JTextPane;
 
 public class FileManager {
 
@@ -57,13 +58,13 @@ public class FileManager {
 		}
 	}
 	
-	public static void read(JTextArea text, File f) {
+	public static void read(JTextPane text, File f) {
 		try {
 			text.setText("");
 			BufferedReader reader = new BufferedReader(new FileReader(f));
 			String buffer = "";
 			while ((buffer = reader.readLine()) != null) {
-				text.append(buffer + "\n");
+				Assembler.appendToCode(buffer + "\n", Assembler.darkMode ? Color.GRAY : Color.BLACK);
 			}
 			reader.close();
 		} catch (IOException e) {

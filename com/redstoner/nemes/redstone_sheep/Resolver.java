@@ -515,6 +515,7 @@ public class Resolver {
 		Assembler.println("Total size: \n    " + size + " bytes (" + (size / 2) + " addresses).");
 		Assembler.println("Finished in " + (done - begin) + "ms.");
 		Assembler.println("");
+		System.gc();
 	}
 	
 	public static boolean isNumber(String s) {
