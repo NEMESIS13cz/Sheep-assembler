@@ -46,6 +46,16 @@ public class FileManager {
 		}
 		return 0;
 	}
+
+	public static void write(String raw, String name) {
+		try {
+			BufferedWriter writer = new BufferedWriter(new FileWriter(new File(name + ".rsasm"))); // raw sheep assembly
+			writer.write(raw);
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	
 	public static void read(JTextArea text, File f) {
 		try {

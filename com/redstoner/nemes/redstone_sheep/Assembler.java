@@ -42,6 +42,7 @@ public class Assembler implements Runnable {
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException e) {
+			System.err.println("Failed to set look & feel!");
 			e.printStackTrace();
 		}
 		loadConfig();
@@ -79,11 +80,19 @@ public class Assembler implements Runnable {
 		JPanel windowPanel = new JPanel();
 		console = new JTextPane();
 		JScrollPane consolePane = new JScrollPane(console);
+		JButton save = new JButton("Save");
 		
 		ActionListener listener = new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
 				Resolver.resolve(text.getText(), name.getText());
+			}
+		};
+		
+		ActionListener listener2 = new ActionListener() {
+			
+			public void actionPerformed(ActionEvent e) {
+				FileManager.write(text.getText(), name.getText());
 			}
 		};
 		
@@ -115,6 +124,7 @@ public class Assembler implements Runnable {
 		button.addActionListener(listener);
 		load.addActionListener(loadListener);
 		mode.addActionListener(modeListener);
+		save.addActionListener(listener2);
 		init(darkMode, panel, mode, text, pane, consolePane);
 		text.setFont(new Font("Courier New", 0, 20));
 		console.setEditable(false);
@@ -128,6 +138,7 @@ public class Assembler implements Runnable {
 		windowPanel.add(consolePane, BorderLayout.EAST);
 		
 		buttonPanel.add(button);
+		buttonPanel.add(save);
 		buttonPanel.add(load);
 		buttonPanel.add(name);
 		buttonPanel.add(mode);
