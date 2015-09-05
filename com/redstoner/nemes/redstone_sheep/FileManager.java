@@ -14,7 +14,7 @@ import javax.swing.JTextArea;
 
 public class FileManager {
 
-	public static void write(String raw, String compiled, String name) {
+	public static int write(String raw, String compiled, String name) {
 		try {
 			BufferedWriter writer = new BufferedWriter(new FileWriter(new File(name + ".rsasm"))); // raw sheep assembly
 			writer.write(raw);
@@ -40,13 +40,16 @@ public class FileManager {
 			}
 			writer2.write(byteArray);
 			writer2.close();
+			return byteArray.length;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		return 0;
 	}
 	
 	public static void read(JTextArea text, File f) {
 		try {
+			text.setText("");
 			BufferedReader reader = new BufferedReader(new FileReader(f));
 			String buffer = "";
 			while ((buffer = reader.readLine()) != null) {

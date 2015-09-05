@@ -7,6 +7,7 @@ public class Resolver {
 	private static HashMap<String, Integer> map = new HashMap<String, Integer>();
 
 	public static void resolve(String text, String fileName) {
+		long begin = System.currentTimeMillis();
 		map.clear();
 		String[] lines = text.split("\n");
 		for (int i = 0; i < lines.length; i++) {
@@ -470,7 +471,7 @@ public class Resolver {
 					}
 				}
 			}catch (BuildException e) {
-				System.err.println(e.getLocalizedMessage());
+				Assembler.errln(e.getLocalizedMessage());
 				return;
 			}
 			// </semi-dirty>
@@ -487,13 +488,13 @@ public class Resolver {
 					try{
 						addr = map.get(buffer);
 					}catch (NullPointerException e) {
-						System.err.println("Address appender: Could not find address space! (" + buffer + ")");
+						Assembler.errln("Address appender: Could not find address space! (" + buffer + ")");
 						return;
 					}
 					if (isInRange(addr, EnumSize.BITSIZE_8)) {
 						compiled_ += fixToBitSize(addr, EnumSize.BITSIZE_8);
 					}else{
-						System.err.println("Address appender: Address out of range! (" + buffer + ")");
+						Assembler.errln("Address appender: Address out of range! (" + buffer + ")");
 						return;
 					}
 					buffer = "";
@@ -506,16 +507,20 @@ public class Resolver {
 				compiled_ += c;
 			}
 		}
+		long done = System.currentTimeMillis();
 		
-		System.out.println(compiled_);
-		FileManager.write(text, compiled_, fileName);
+		int size = FileManager.write(text, compiled_, fileName);
+		Assembler.println(compiled_);
+		Assembler.println("Done resolving...");
+		Assembler.println("Total size: \n    " + size + " bytes (" + (size / 2) + " addresses).");
+		Assembler.println("Finished in " + (done - begin) + "ms.");
+		Assembler.println("");
 	}
 	
 	public static boolean isNumber(String s) {
 		char[] chars = s.toCharArray();
 		for (char c : chars) {
 			if (!Character.isDigit(c) && !s.startsWith("0X") && !s.startsWith("0B")) {
-				System.out.println(c);
 				return false;
 			}
 		}
