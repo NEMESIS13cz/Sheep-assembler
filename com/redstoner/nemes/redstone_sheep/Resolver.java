@@ -7,7 +7,7 @@ public class Resolver {
 	private static HashMap<String, Integer> map = new HashMap<String, Integer>();
 
 	public static void resolve(String text, String fileName) {
-		long begin = System.currentTimeMillis();
+		long begin = System.nanoTime();
 		map.clear();
 		String[] lines = text.split("\n");
 		for (int i = 0; i < lines.length; i++) {
@@ -507,13 +507,13 @@ public class Resolver {
 				compiled_ += c;
 			}
 		}
-		long done = System.currentTimeMillis();
+		long done = System.nanoTime();
 		
 		int size = FileManager.write(text, compiled_, fileName);
 		Assembler.println(compiled_);
 		Assembler.println("Done resolving...");
 		Assembler.println("Total size: \n    " + size + " bytes (" + (size / 2) + " addresses).");
-		Assembler.println("Finished in " + (done - begin) + "ms.");
+		Assembler.println("Finished in " + (done - begin) + "ns. (" + ((done - begin) / 1000000) + "ms)");
 		Assembler.println("");
 		System.gc();
 	}
