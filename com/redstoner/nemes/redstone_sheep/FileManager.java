@@ -64,7 +64,7 @@ public class FileManager {
 			BufferedReader reader = new BufferedReader(new FileReader(f));
 			String buffer = "";
 			while ((buffer = reader.readLine()) != null) {
-				Assembler.appendToCode(buffer + "\n", Assembler.darkMode ? Color.GRAY : Color.BLACK);
+				IDE.appendToCode(buffer + "\n", IDE.darkMode ? Color.GRAY : Color.BLACK);
 			}
 			reader.close();
 		} catch (IOException e) {

@@ -1,456 +1,1028 @@
 package com.redstoner.nemes.redstone_sheep;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.util.HashMap;
 
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextField;
-import javax.swing.JTextPane;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.text.AttributeSet;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
-import javax.swing.text.StyleContext;
-import javax.swing.text.StyledDocument;
-
-public class Assembler implements Runnable {
+public class Assembler {
 	
-	public static final int CODE_REFRESH_RATE = 1000;
-	
-	protected static boolean darkMode;
-	protected static JTextPane console;
-	protected static JTextPane codeTextPane;
-	protected static boolean hasChanged = false;
-	protected static boolean restartTimer = false;
-	
-	public void run() {
-		try {
-			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException e) {
-			System.err.println("Failed to set look & feel!");
-			e.printStackTrace();
-		}
-		loadConfig();
-		//Setup frame and main panel
-		JFrame frame = new JFrame();
-		JPanel panel = new JPanel();
-		frame.setTitle("Redstone Sheep Assembler");
-		frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		frame.setPreferredSize(new Dimension(600, 400));
-		
-		frame.getContentPane().add(panel);
-		frame.addWindowListener(Helpers.getWindowListener());
-		
-		BoxLayout layout = new BoxLayout(panel, BoxLayout.Y_AXIS);
-		panel.setLayout(layout);
-		
-		//Create GUI elements
-		JPanel bottomPanel = new JPanel();
-		JPanel topPanel = new JPanel();
-		
-		console = new JTextPane();
-		
-		codeTextPane = new JTextPane();
+	private static HashMap<String, Integer> map = new HashMap<String, Integer>();
 
-		JScrollPane codeScrollPane = new JScrollPane(codeTextPane);
-		JScrollPane consoleScrollPane = new JScrollPane(console);
-
-		JTextField fileNameTextField = new JTextField("program");
-		
-		JButton assembleButton = new JButton("Assemble");
-		JButton loadButton = new JButton("Load file");
-		JButton modeSwitchButton = new JButton();
-		JButton saveButton = new JButton("Save");
-		
-		//Setup panels
-		BoxLayout bottomPanelLayout = new BoxLayout(bottomPanel, BoxLayout.X_AXIS);
-		bottomPanel.setLayout(bottomPanelLayout);
-		
-		BorderLayout topPanelLayout = new BorderLayout();
-		topPanel.setLayout(topPanelLayout);
-		
-		//Add button action listeners
-		assembleButton.addActionListener(Helpers.getAssembleButtonActionListener(codeTextPane, fileNameTextField));
-		loadButton.addActionListener(Helpers.getLoadButtonActionListener(codeTextPane));
-		modeSwitchButton.addActionListener(Helpers.getModeSwitchButtonActionListener(topPanel, modeSwitchButton, codeTextPane, codeScrollPane, consoleScrollPane));
-		saveButton.addActionListener(Helpers.getSaveButtonActionListener(codeTextPane, fileNameTextField));
-		codeTextPane.getDocument().addDocumentListener(Helpers.getDocumentListener());
-		
-		//Set properties of GUI elements
-		console.setEditable(false);
-		console.setPreferredSize(new Dimension(300, Integer.MAX_VALUE));
-		
-		codeTextPane.setFont(new Font("Courier New", 0, 20));
-		
-		fileNameTextField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-		
-		init(darkMode, panel, modeSwitchButton, codeTextPane, codeScrollPane, consoleScrollPane);
-		
-		//Add GUI elements to panels
-		topPanel.add(codeScrollPane);
-		topPanel.add(consoleScrollPane, BorderLayout.EAST);
-		
-		bottomPanel.add(assembleButton);
-		bottomPanel.add(saveButton);
-		bottomPanel.add(loadButton);
-		bottomPanel.add(fileNameTextField);
-		bottomPanel.add(modeSwitchButton);
-		
-		panel.add(topPanel);
-		panel.add(bottomPanel);
-		
-		//Final setup
-		frame.pack();
-		frame.setLocationRelativeTo(null);
-		
-		frame.setVisible(true);
-		Thread timer = new Thread() {
-
-	        StyledDocument document;
-	        AttributeSet defaultColor;
-	        AttributeSet instruction;
-	        AttributeSet register;
-	        AttributeSet name;
-	        AttributeSet call;
-	        AttributeSet function;
-	        AttributeSet functionName;
-	        AttributeSet functionCall;
-	        AttributeSet number;
-			
-			public void run() {
-				restartTimer(false);
-				initTimer();
-				
-				while (!shouldTimerRestart()) {
-					if (lastUpdate < System.currentTimeMillis() && hasChanged) {
-						updateCodePaneMarking(document, defaultColor, instruction, register, name, call, function, functionName, functionCall, number);
-						hasChanged = false;
+	public static String resolve(String text, String fileName) {
+		long begin = System.nanoTime();
+		boolean usingBCX = false;
+		boolean usingFPX = false;
+		boolean usingMCX = false;
+		map.clear();
+		String[] lines = text.split("\n");
+		for (int i = 0; i < lines.length; i++) {
+			String s = lines[i];
+			String res = "";
+			boolean last = false;
+			boolean isFirst = true;
+			for (char c : s.toCharArray()) {
+				if (c == ' ' || c == '	') {
+					if (!last && !isFirst) {
+						res += c;
+						last = true;
 					}
-					try {
-						Thread.sleep(CODE_REFRESH_RATE);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-				initTimer();
-				run();
-			}
-			
-			private void initTimer() {
-		        document = codeTextPane.getStyledDocument();
-		        StyleContext context = StyleContext.getDefaultStyleContext();
-		        
-				if (darkMode) {
-			        defaultColor = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, Color.GRAY);
-			        instruction = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0xd0024a));
-			        register = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x00e5d2));
-			        AttributeSet name_temp = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0xe04508));
-			        name = context.addAttribute(name_temp, StyleConstants.Bold, true);
-			        call = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0xe0c408));
-			        AttributeSet function_temp = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x00960e));
-			        function = context.addAttribute(function_temp, StyleConstants.Bold, true);
-			        functionName = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x46ff57));
-			        AttributeSet functionCall_temp = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Italic, true);
-			        functionCall = context.addAttribute(functionCall_temp, StyleConstants.Foreground, new Color(0x46ff57));
-			        number = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x0a27ff));
 				}else{
-			        defaultColor = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, Color.BLACK);
-			        instruction = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x2e2e2e));
-			        register = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0xd0024a));
-			        AttributeSet name_temp = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x036f82));
-			        name = context.addAttribute(name_temp, StyleConstants.Bold, true);
-			        call = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x03badb));
-			        AttributeSet function_temp = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0xb10893));
-			        function = context.addAttribute(function_temp, StyleConstants.Bold, true);
-			        functionName = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x777777));
-			        AttributeSet functionCall_temp = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Italic, true);
-			        functionCall = context.addAttribute(functionCall_temp, StyleConstants.Foreground, new Color(0x777777));
-			        number = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, new Color(0x199319));
+					last = false;
+					isFirst = false;
+					res += c;
 				}
 			}
-		};
-		timer.start();
-	}
-	
-    private static void appendToConsole(String msg, Color c) {
-        StyleContext sc = StyleContext.getDefaultStyleContext();
-        AttributeSet aset = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, c);
-        
-        aset = sc.addAttribute(aset, StyleConstants.FontFamily, "Courier New");
-        aset = sc.addAttribute(aset, StyleConstants.Alignment, StyleConstants.ALIGN_JUSTIFIED);
-        
-        int len = console.getDocument().getLength();
-		console.setEditable(true);
-        console.setCaretPosition(len);
-        console.setCharacterAttributes(aset, false);
-        console.replaceSelection(msg);
-		console.setEditable(false);
-    }
-    
-    public static void println(String msg) {
-    	appendToConsole(msg + "\n", Color.BLACK);
-    	System.out.println(msg);
-    }
-    
-    public static void errln(String msg) {
-    	appendToConsole(msg + "\n", Color.RED);
-    	System.err.println(msg);
-    }
-	
-    protected static void appendToCode(String msg, Color c) {
-        StyleContext sc = StyleContext.getDefaultStyleContext();
-        AttributeSet aset = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, c);
-        
-        aset = sc.addAttribute(aset, StyleConstants.FontFamily, "Courier New");
-        aset = sc.addAttribute(aset, StyleConstants.Alignment, StyleConstants.ALIGN_JUSTIFIED);
-        
-        int len = codeTextPane.getDocument().getLength();
-        codeTextPane.setCaretPosition(len);
-        codeTextPane.setCharacterAttributes(aset, false);
-        codeTextPane.replaceSelection(msg);
-    }
-    
-    private static long lastUpdate = 0;
-    
-    public static void updateCodePaneMarking(StyledDocument document, AttributeSet defaultColor, AttributeSet instruction, AttributeSet register, AttributeSet name, AttributeSet call, AttributeSet function, AttributeSet functionName, AttributeSet functionCall, AttributeSet number) {
-    	if (lastUpdate + CODE_REFRESH_RATE > System.currentTimeMillis()) {
-    		return;
-    	}
-    	lastUpdate = System.currentTimeMillis();
-        
-        boolean inName = false;
-        boolean inCall = false;
-        boolean inFuncName = false;
-        boolean callingFunc = false;
-        boolean inHexNumber = false;
-        
-        try {
-        	main: for (int index = 0; index < document.getLength(); index++) {
-        		String potentialMatch = "";
-        		if (inHexNumber) {
-        			potentialMatch = document.getText(index, 1).toUpperCase();
-        			if (!(potentialMatch.equals("A") || potentialMatch.equals("B") || potentialMatch.equals("C") || potentialMatch.equals("D") || potentialMatch.equals("E") || potentialMatch.equals("F") || Character.isDigit(potentialMatch.toCharArray()[0]))) {
-        				inHexNumber = false;
-        				continue;
-        			}
-    				document.setCharacterAttributes(index, 1, number, true);
-        		}else if (inName) {
-    				document.setCharacterAttributes(index, 1, name, true);
-        			potentialMatch = document.getText(index, 1);
-        			if (potentialMatch.equals(":") || potentialMatch.equals("\n") || potentialMatch.equals(" ") || potentialMatch.equals("	")) {
-        				inName = false;
-        			}
-        		}else if (inCall) {
-    				document.setCharacterAttributes(index, 1, call, true);
-        			potentialMatch = document.getText(index, 1);
-        			if (potentialMatch.equals("\n") || potentialMatch.equals(" ") || potentialMatch.equals("	")) {
-        				inCall = false;
-        			}
-        		}else if (callingFunc) {
-    				document.setCharacterAttributes(index, 1, functionCall, true);
-        			potentialMatch = document.getText(index, 1);
-        			if (potentialMatch.equals("\n") || potentialMatch.equals(" ") || potentialMatch.equals("	")) {
-        				callingFunc = false;
-        			}
-        		}else if (inFuncName) {
-    				document.setCharacterAttributes(index, 1, functionName, true);
-        			potentialMatch = document.getText(index, 1);
-        			if (potentialMatch.equals(":") || potentialMatch.equals("\n") || potentialMatch.equals(" ") || potentialMatch.equals("	")) {
-        				inFuncName = false;
-        			}
-        		}else{
-        			potentialMatch = document.getText(index, 1);
-        			String find = "";
-            		if (potentialMatch.equals(".") && ((index > 0 && document.getText(index - 1, 1).equals("\n")) || index == 0)) {
-        				document.setCharacterAttributes(index, 1, name, true);
-            			inName = true;
-            			continue main;
-            		}else if (potentialMatch.equals(".") && (document.getText(index - 1, 1).equals(" ") || document.getText(index - 1, 1).equals("	"))){
-        				document.setCharacterAttributes(index, 1, call, true);
-            			inCall = true;
-            			continue main;
-            		}else{
-	            		find = "FUNCTION";
-	            		if (index + find.length() < document.getLength()) {
-	            			potentialMatch = document.getText(index, find.length() + 1).toUpperCase();
-	            			if (potentialMatch.equals(find + " ")) {
-	            				document.setCharacterAttributes(index, find.length(), function, true);
-	    	                    index += find.length();
-	    	                    inFuncName = true;
-	    	                    continue main;
-	            			}
-	            		}
-	            		find = "DEF";
-	            		if (index + find.length() < document.getLength()) {
-	            			potentialMatch = document.getText(index, find.length() + 1).toUpperCase();
-	            			if (potentialMatch.equals(find + " ")) {
-	            				document.setCharacterAttributes(index, find.length(), function, true);
-	    	                    index += find.length();
-	    	                    inFuncName = true;
-	    	                    continue main;
-	            			}
-	            		}
-            		}
-            		find = "0X";
-            		if (index + find.length() < document.getLength()) {
-            			potentialMatch = document.getText(index, find.length()).toUpperCase();
-            			if (potentialMatch.equals(find)) {
-            				document.setCharacterAttributes(index, find.length(), number, true);
-    	                    index += find.length() - 1;
-    	                    inHexNumber = true;
-    	                    continue main;
-            			}
-            		}
-            		find = "0B";
-            		if (index + find.length() < document.getLength()) {
-            			potentialMatch = document.getText(index, find.length()).toUpperCase();
-            			if (potentialMatch.equals(find)) {
-            				document.setCharacterAttributes(index, find.length(), number, true);
-    	                    index += find.length() - 1;
-    	                    continue main;
-            			}
-            		}
-            		if (index + 2 < document.getLength()) {
-            			char[] chars = document.getText(index == 0 ? index : index - 1, 3).toCharArray();
-            			if (Character.isDigit(chars[0]) && chars[1] == '.' && Character.isDigit(chars[2])) {
-            				document.setCharacterAttributes(index - 1, 3, number, true);
-    	                    index += 2;
-    	                    continue main;
-            			}
-            		}
-        			potentialMatch = document.getText(index, 1);
-            		if (Character.isDigit(potentialMatch.toCharArray()[0])) {
-        				document.setCharacterAttributes(index, 1, number, true);
-            			continue main;
-            		}
-	            	for (Instruction instr : Instruction.instructions) {
-	            		find = instr.toString();
-	            		if (index + find.length() < document.getLength()) {
-	            			potentialMatch = document.getText(index, find.length() + 1).toUpperCase();
-	            			if (potentialMatch.equals(find + " ") || potentialMatch.equals(find + "	") || potentialMatch.equals(find + "\n")) {
-	            				document.setCharacterAttributes(index, find.length(), instruction, true);
-	    	                    index += find.length();
-	    	                    if (potentialMatch.substring(0, potentialMatch.length() - 1).equals(Instruction.CALL.toString())) {
-	    	                    	callingFunc = true;
-	    	                    }
-	    	                    continue main;
-	            			}
-	            		}
-	            	}
-	            	for (Register reg : Register.registers) {
-	            		find = reg.toString();
-	            		if (index + find.length() < document.getLength()) {
-	            			potentialMatch = document.getText(index == 0 ? index : index - 1, find.length() + 1).toUpperCase();
-	            			if (potentialMatch.equals(" " + find) || potentialMatch.equals("	" + find)) {
-	            				document.setCharacterAttributes(index, find.length(), register, true);
-	    	                    index += find.length() - 1;
-	    	                    continue main;
-	            			}
-	            		}
-	            	}
-	        		if (index + 1 < document.getLength()) {
-	        			potentialMatch = document.getText(index, 2);
-	        			if (potentialMatch.equals(" -") || potentialMatch.equals("	-")) {
-	        				document.setCharacterAttributes(index + 1, 2, register, true);
-	        				index++;
-		                    continue main;
-	        			}
-	        		}
-					document.setCharacterAttributes(index, 1, defaultColor, true);
-        		}
-            }
-        } catch (BadLocationException ex) {
-            ex.printStackTrace();
-        }
-        System.gc();
-    }
-	
-	protected static void init(boolean dark, JPanel panel, JButton modeSwitchButton, JTextPane codeTextArea, JScrollPane codeScrollPane, JScrollPane consoleScrollPane) {
-		if (dark) {
-			modeSwitchButton.setText("Normal");
-			panel.setBackground(Color.BLACK);
-			codeTextArea.setForeground(Color.GRAY);
-			codeTextArea.setBackground(Color.BLACK);
-			codeTextArea.setCaretColor(Color.WHITE);
-			codeScrollPane.setBackground(Color.BLACK);
-			consoleScrollPane.setBackground(Color.GRAY);
-			console.setBackground(Color.GRAY);
-		}else{
-			modeSwitchButton.setText("Dark");
-			panel.setBackground(Color.WHITE);
-			codeTextArea.setForeground(Color.BLACK);
-			codeTextArea.setBackground(Color.WHITE);
-			codeTextArea.setCaretColor(Color.GRAY);
-			codeScrollPane.setBackground(Color.WHITE);
-			consoleScrollPane.setBackground(Color.LIGHT_GRAY);
-			console.setBackground(Color.LIGHT_GRAY);
+			lines[i] = res + " ";
 		}
-		restartTimer(true);
-	}
-	
-	private static synchronized boolean shouldTimerRestart() {
-		return restartTimer;
-	}
-	
-	private static synchronized void restartTimer(boolean b) {
-		restartTimer = b;
-	}
-	
-	public static void saveConfig() {
-		Thread t = new Thread() {
-			
-			public void run() {
+		String compiled = "";
+		int address = 0;
+		
+		for (int i = 0; i < lines.length; i++) {
+			// <dirty>
+			String temp1 = "";
+			try {
+				temp1 = lines[i].substring(lines[i].indexOf(' ') + 1);
+			} catch(Exception e) {}
+			String temp2 = "";
+			try {
+				temp2 = temp1.substring(temp1.indexOf(' ') + 1);
+			} catch(Exception e) {}
+			String first = Instruction.NOP.toString();
+			try {
+				first = lines[i].substring(0, lines[i].indexOf(' ')).toUpperCase();
+			} catch(Exception e) {}
+			String arg1 = "";
+			try {
+				arg1 = temp1.substring(0, temp1.indexOf(", ")).toUpperCase();
+			} catch(Exception e) {
 				try {
-					BufferedWriter writer = new BufferedWriter(new FileWriter(new File("sheep_assembler.config")));
-					writer.write("dark=" + String.valueOf(darkMode));
-					writer.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				System.gc();
-				System.exit(0);
+					arg1 = temp1.substring(0, temp1.indexOf(' ')).toUpperCase();
+				} catch(Exception e1) {}
 			}
-		};
-		t.start();
+			String arg2 = "";
+			try {
+				arg2 = temp2.substring(0, temp2.indexOf(' ')).toUpperCase();
+			} catch(Exception e) {}
+			// </dirty>
+			// <semi-dirty>
+			try {
+				if (first.startsWith(".") && first.endsWith(":")) {
+					map.put(first.substring(0, first.length() - 1), address + 1);
+				}else if ((first.equals("DEF") || first.equals("FUNCTION")) && arg1.endsWith(":")) {
+					map.put(arg1.substring(0, arg1.length() - 1), address + 1);
+				}else if (first.equals(Instruction.ADDWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "000111" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.ADDWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.ADDWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.ANDWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "000101" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "0";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.ANDWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.ANDWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.CLRF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1 && !register) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "0000011" + fixToBitSize(addr, EnumSize.BITSIZE_8) + "0";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.CLRF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.CLRF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.CLRW.toString())) {
+					String instr = "0000010000000000";
+					compiled += instr + "\n"; address++;
+				}else if (first.equals(Instruction.COMF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "001001" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.COMF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.COMF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.DECF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "000011" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.DECF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.DECF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.DECFSZ.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "001011" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.DECFSZ.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.DECFSZ.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.INCF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "001010" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.INCF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.INCF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.INCFSZ.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "001111" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.INCFSZ.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.INCFSZ.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.IORWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "000100" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "0";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.IORWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.IORWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.MOVF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "001000" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "0";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.MOVF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.MOVF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.MOVWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "0000001" + fixToBitSize(addr, EnumSize.BITSIZE_8) + (register ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.MOVWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.MOVWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.NOP.toString())) {
+					String instr = "0000000000000000";
+					compiled += instr + "\n"; address++;
+				}else if (first.equals(Instruction.RLF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "001101" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "0";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.RLF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.RLF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.RRF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "001100" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "0";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.RRF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.RRF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.SUBWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "000010" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.SUBWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SUBWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.SWAPF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "001110" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "0";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.SWAPF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SWAPF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.XORWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "000110" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "0";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.XORWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.XORWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.BCF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1 && !register) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							if (isNumber(arg2) && isInRange(parseNumber(arg2), EnumSize.BITSIZE_4)) {
+								String instr = "0100" + fixToBitSize(parseNumber(arg2), EnumSize.BITSIZE_4) + fixToBitSize(addr, EnumSize.BITSIZE_8);
+								compiled += instr + "\n"; address++;
+							}else{
+								throw new BuildException("line " + (i + 1) + " " + Instruction.BCF.toString() + ": bit address invalid!");
+							}
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.BCF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BCF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.BSF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1 && !register) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							if (isNumber(arg2) && isInRange(parseNumber(arg2), EnumSize.BITSIZE_4)) {
+								String instr = "0101" + fixToBitSize(parseNumber(arg2), EnumSize.BITSIZE_4) + fixToBitSize(addr, EnumSize.BITSIZE_8);
+								compiled += instr + "\n"; address++;
+							}else{
+								throw new BuildException("line " + (i + 1) + " " + Instruction.BSF.toString() + ": bit address invalid!");
+							}
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.BSF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BSF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.BTFSC.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1 && !register) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							if (isNumber(arg2) && isInRange(parseNumber(arg2), EnumSize.BITSIZE_4)) {
+								String instr = "0110" + fixToBitSize(parseNumber(arg2), EnumSize.BITSIZE_4) + fixToBitSize(addr, EnumSize.BITSIZE_8);
+								compiled += instr + "\n"; address++;
+							}else{
+								throw new BuildException("line " + (i + 1) + " " + Instruction.BTFSC.toString() + ": bit address invalid!");
+							}
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.BTFSC.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BTFSC.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.BTFSS.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1 && !register) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							if (isNumber(arg2) && isInRange(parseNumber(arg2), EnumSize.BITSIZE_4)) {
+								String instr = "0111" + fixToBitSize(parseNumber(arg2), EnumSize.BITSIZE_4) + fixToBitSize(addr, EnumSize.BITSIZE_8);
+								compiled += instr + "\n"; address++;
+							}else{
+								throw new BuildException("line " + (i + 1) + " " + Instruction.BTFSS.toString() + ": bit address invalid!");
+							}
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.BTFSS.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BTFSS.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.ADDLW.toString())) {
+					if (isNumber(arg1)) {
+						int lit = parseNumber(arg1);
+						if (isInRange(lit, EnumSize.BITSIZE_8)) {
+							String instr = "111110" + fixToBitSize(lit, EnumSize.BITSIZE_8) + "0" + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.ADDLW.toString() + ": literal too big!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.ADDLW.toString() + ": literal invalid!");
+					}
+				}else if (first.equals(Instruction.ANDLW.toString())) {
+					if (isNumber(arg1)) {
+						int lit = parseNumber(arg1);
+						if (isInRange(lit, EnumSize.BITSIZE_8)) {
+							String instr = "111001" + fixToBitSize(lit, EnumSize.BITSIZE_8) + "00";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.ANDLW.toString() + ": literal too big!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.ANDLW.toString() + ": literal invalid!");
+					}
+				}else if (first.equals(Instruction.CALL.toString())) {
+					String instr = "100<" + arg1 + ">00001";
+					compiled += instr + "\n"; address++;
+				}else if (first.equals(Instruction.CLRWDT.toString())) {
+					String instr = "0000000110010000";
+					compiled += instr + "\n"; address++;
+				}else if (first.equals(Instruction.GOTO.toString())) {
+					String instr = "101<" + arg1 + ">00000";
+					compiled += instr + "\n"; address++;
+				}else if (first.equals(Instruction.IORLW.toString())) {
+					if (isNumber(arg1)) {
+						int lit = parseNumber(arg1);
+						if (isInRange(lit, EnumSize.BITSIZE_8)) {
+							String instr = "111000" + fixToBitSize(lit, EnumSize.BITSIZE_8) + "00";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.IORLW.toString() + ": literal too big!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.IORLW.toString() + ": literal invalid!");
+					}
+				}else if (first.equals(Instruction.MOVLW.toString())) {
+					if (isNumber(arg1)) {
+						int lit = parseNumber(arg1);
+						if (isInRange(lit, EnumSize.BITSIZE_8)) {
+							String instr = "110000" + fixToBitSize(lit, EnumSize.BITSIZE_8) + "00";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.MOVLW.toString() + ": literal too big!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.MOVLW.toString() + ": literal invalid!");
+					}
+				}else if (first.equals(Instruction.RETFIE.toString())) {
+					String instr = "0000000000100100";
+					compiled += instr + "\n"; address++;
+				}else if (first.equals(Instruction.RETLW.toString())) {
+					if (isNumber(arg1)) {
+						int lit = parseNumber(arg1);
+						if (isInRange(lit, EnumSize.BITSIZE_8)) {
+							String instr = "110100" + fixToBitSize(lit, EnumSize.BITSIZE_8) + "00";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.RETLW.toString() + ": literal too big!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.RETLW.toString() + ": literal invalid!");
+					}
+				}else if (first.equals(Instruction.RETURN.toString())) {
+					String instr = "0000000000100000";
+					compiled += instr + "\n"; address++;
+				}else if (first.equals(Instruction.SLEEP.toString())) {
+					String instr = "0000000110001100";
+					compiled += instr + "\n"; address++;
+				}else if (first.equals(Instruction.SUBLW.toString())) {
+					if (isNumber(arg1)) {
+						int lit = parseNumber(arg1);
+						if (isInRange(lit, EnumSize.BITSIZE_8)) {
+							String instr = "111100" + fixToBitSize(lit, EnumSize.BITSIZE_8) + "0" + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.SUBLW.toString() + ": literal too big!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SUBLW.toString() + ": literal invalid!");
+					}
+				}else if (first.equals(Instruction.XORLW.toString())) {
+					if (isNumber(arg1)) {
+						int lit = parseNumber(arg1);
+						if (isInRange(lit, EnumSize.BITSIZE_8)) {
+							String instr = "111010" + fixToBitSize(lit, EnumSize.BITSIZE_8) + "00";
+							compiled += instr + "\n"; address++;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.XORLW.toString() + ": literal too big!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.XORLW.toString() + ": literal invalid!");
+					}
+				}else if (first.equals(Instruction.FADDWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10000" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FADDWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FADDWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FCOMF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10001" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FCOMF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FCOMF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FDECF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10010" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FDECF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FDECF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FDECFSZ.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10011" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FDECFSZ.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FDECFSZ.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FINCF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10100" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FINCF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FINCF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FINCFSZ.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10101" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FINCFSZ.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FINCFSZ.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FSUBWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10110" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FSUBWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FSUBWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FMULWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10111" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FMULWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FMULWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FDIVWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "11000" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FDIVWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FDIVWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FPTINT.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "11001" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "1" + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FPTINT.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FPTINT.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.INTTFP.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "11010" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "1" + (arg2.toLowerCase().equals("-u") ? "0" : "1");
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.INTTFP.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.INTTFP.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.FCOMPWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "11011" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingFPX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.FCOMPWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.FCOMPWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.MULWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "1000" + (arg2.toLowerCase().equals("-u") ? "0" : "1") + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "01";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.MULWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.MULWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.DIVWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "1001" + (arg2.toLowerCase().equals("-u") ? "0" : "1") + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "01";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.DIVWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.DIVWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.BOOL.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "10100" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "01";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.BOOL.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BOOL.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.STO.toString())) {
+					int addr = parseNumber(arg1);
+					int prgID = parseNumber(arg2);
+					if (isInRange(prgID, EnumSize.BITSIZE_2)) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "1011" + fixToBitSize(prgID, EnumSize.BITSIZE_2) + fixToBitSize(addr, EnumSize.BITSIZE_8) + "01";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.STO.toString() + ": memory offset exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.STO.toString() + ": program ID exceeds maximum!");
+					}
+				}else if (first.equals(Instruction.SHFTRN.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "11000" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "01";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.SHFTRN.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SHFTRN.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.SHFTLN.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "11010" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "01";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.SHFTLN.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SHFTLN.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.SHFTRR.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "11100" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "01";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.SHFTRR.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SHFTRR.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.SHFTLR.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "11110" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "01";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.SHFTLR.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SHFTLR.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.COMPWF.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					if (addr != -1) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "1101" + (register ? "0" : "1") + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingBCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.COMPWF.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.COMPWF.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.LOADLW.toString())) {
+					int addr = translateRegister(arg1);
+					boolean register = addr > -1;
+					if (!register) addr += 1000;
+					int lit = parseNumber(arg2);
+					if (addr != -1) {
+						if (isInRange(lit, EnumSize.BITSIZE_16)) {
+							if (isInRange(addr, EnumSize.BITSIZE_8)) {
+								String instr = "11100" + (register ? "0" : "1") + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+								compiled += instr + "\n"; address++;
+								compiled += fixToBitSize(lit, EnumSize.BITSIZE_16) + "\n"; address++;
+								usingBCX = true;
+							}else{
+								throw new BuildException("line " + (i + 1) + " " + Instruction.LOADLW.toString() + ": memory address exceeds maximum!");
+							}
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.LOADLW.toString() + ": literal too big!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.LOADLW.toString() + ": memory address invalid!");
+					}
+				}else if (first.equals(Instruction.GOTOF.toString())) {
+					int cond = parseNumber(arg2);
+					if (isInRange(cond, EnumSize.BITSIZE_16)) {
+						String instr = "111100<" + arg1 + ">10";
+						compiled += instr + "\n"; address++;
+						compiled += fixToBitSize(cond, EnumSize.BITSIZE_16) + "\n"; address++;
+						usingBCX = true;
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.GOTOF.toString() + ": conditions invalid!");
+					}
+				}else if (first.equals(Instruction.SBAP.toString())) {
+					int addr = parseNumber(arg1);
+					int thread = parseNumber(arg2);
+					if (isInRange(thread, EnumSize.BITSIZE_2)) {
+						if (isInRange(addr, EnumSize.BITSIZE_8)) {
+							String instr = "1000" + fixToBitSize(thread, EnumSize.BITSIZE_2) + fixToBitSize(addr, EnumSize.BITSIZE_8) + "10";
+							compiled += instr + "\n"; address++;
+							usingMCX = true;
+						}else{
+							throw new BuildException("line " + (i + 1) + " " + Instruction.SBAP.toString() + ": memory address exceeds maximum!");
+						}
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SBAP.toString() + ": thread ID exceeds maximum!");
+					}
+				}else if (first.equals(Instruction.STTH.toString())) {
+					int thread = parseNumber(arg2);
+					if (isInRange(thread, EnumSize.BITSIZE_2)) {
+						String instr = "1001" + fixToBitSize(thread, EnumSize.BITSIZE_2) + "0000000010";
+						compiled += instr + "\n"; address++;
+						usingMCX = true;
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.STTH.toString() + ": thread ID exceeds maximum!");
+					}
+				}else if (first.equals(Instruction.SPTH.toString())) {
+					int thread = parseNumber(arg2);
+					if (isInRange(thread, EnumSize.BITSIZE_2)) {
+						String instr = "1010" + fixToBitSize(thread, EnumSize.BITSIZE_2) + "0000000010";
+						compiled += instr + "\n"; address++;
+						usingMCX = true;
+					}else{
+						throw new BuildException("line " + (i + 1) + " " + Instruction.SPTH.toString() + ": thread ID exceeds maximum!");
+					}
+				}else if (first.equals(Instruction.LOCK.toString())) {
+					String instr = "1011000000000010";
+					compiled += instr + "\n"; address++;
+					usingMCX = true;
+				}else if (first.equals(Instruction.UNLOCK.toString())) {
+					String instr = "1100000000000010";
+					compiled += instr + "\n"; address++;
+					usingMCX = true;
+				}
+			}catch (BuildException e) {
+				IDE.errln(e.getLocalizedMessage());
+				return null;
+			}
+			// </semi-dirty>
+		}
+		
+		String compiled_ = "";
+		String buffer = "";
+		boolean tag = false;
+		for (char c : compiled.toCharArray()) {
+			if (tag) {
+				if (c == '>') {
+					tag = false;
+					int addr = 0;
+					try{
+						addr = map.get(buffer);
+					}catch (NullPointerException e) {
+						IDE.errln("Address linker: Could not find address space! (" + buffer + ")");
+						return null;
+					}
+					if (isInRange(addr, EnumSize.BITSIZE_8)) {
+						compiled_ += fixToBitSize(addr, EnumSize.BITSIZE_8);
+					}else{
+						IDE.errln("Address linker: Address out of range! (" + buffer + ")");
+						return null;
+					}
+					buffer = "";
+					continue;
+				}
+				buffer += c;
+			}else if (c == '<') {
+				tag = true;
+			}else{
+				compiled_ += c;
+			}
+		}
+		long done = System.nanoTime();
+		
+		int size = FileManager.write(text, compiled_, fileName);
+		IDE.println(compiled_);
+		IDE.println("Done assembling...");
+		IDE.println("Using BCX: " + usingBCX);
+		IDE.println("Using FPX: " + usingFPX);
+		IDE.println("Using MCX: " + usingMCX);
+		IDE.println("Total size: \n    " + size + " bytes (" + (size / 2) + " addresses)");
+		IDE.println("Finished in " + (done - begin) + "ns (" + ((done - begin) / 1000000) + "ms)");
+		IDE.println("");
+		System.gc();
+		return compiled_;
 	}
 	
-	public static void loadConfig() {
-		File f = new File("sheep_assembler.config");
-		if (!f.exists()) {
-			darkMode = false;
-			return;
-		}
-		try {
-			BufferedReader reader = new BufferedReader(new FileReader(f));
-			String buffer = "";
-			while ((buffer = reader.readLine()) != null) {
-				if (buffer.startsWith("dark")) {
-					String value = buffer.substring(buffer.indexOf('=') + 1, buffer.length());
-					darkMode = Boolean.parseBoolean(value);
-				}
+	public static boolean isNumber(String s) {
+		char[] chars = s.toCharArray();
+		for (char c : chars) {
+			if (!Character.isDigit(c) && !s.startsWith("0X") && !s.startsWith("0B")) {
+				return false;
 			}
-			reader.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+		}
+		return true;
+	}
+	
+	public static int parseNumber(String s) {
+		if (s.startsWith("0X")) {
+			return Integer.parseInt(s.substring(2, s.length()), 16);
+		}else if (s.startsWith("0B")) {
+			return Integer.parseInt(s.substring(2, s.length()), 2);
+		}else{
+			return Integer.parseInt(s, 10);
 		}
 	}
 	
-	public static void main(String[] args) {
-		SwingUtilities.invokeLater(new Assembler());
+	public static boolean isInRange(int i, EnumSize range) {
+		if (i < 0) {
+			return false;
+		}
+		if (range == EnumSize.BITSIZE_2 && i <= 0x3) {
+			return true;
+		}else if (range == EnumSize.BITSIZE_4 && i <= 0xF) {
+			return true;
+		}else if (range == EnumSize.BITSIZE_8 && i <= 0xFF) {
+			return true;
+		}else if (range == EnumSize.BITSIZE_16 && i <= 0xFFFF) {
+			return true;
+		}
+		return false;
+	}
+	
+	public static String fixToBitSize(int in, EnumSize range) {
+		String s = Integer.toBinaryString(in);
+		int begin = s.length();
+		if (range == EnumSize.BITSIZE_2 && s.length() < 2) {
+			for (int i = 0; i < 2 - begin; i++) {
+				s = '0' + s;
+			}
+		}else if (range == EnumSize.BITSIZE_4 && s.length() < 4) {
+			for (int i = 0; i < 4 - begin; i++) {
+				s = '0' + s;
+			}
+		}else if (range == EnumSize.BITSIZE_8 && s.length() < 8) {
+			for (int i = 0; i < 8 - begin; i++) {
+				s = '0' + s;
+			}
+		}else if (range == EnumSize.BITSIZE_16 && s.length() < 16) {
+			for (int i = 0; i < 16 - begin; i++) {
+				s = '0' + s;
+			}
+		}
+		return s;
+	}
+	
+	public static int translateRegister(String reg) {
+		switch (reg.toLowerCase()) {
+		case "-": return 0;
+		case "w": return 0;
+		case "ax": return 1;
+		case "bx": return 2;
+		case "cx": return 3;
+		case "dx": return 4;
+		case "r5": return 5;
+		case "r6": return 6;
+		case "r7": return 7;
+		case "r8": return 8;
+		case "cr1": return 9;
+		case "cr2": return 10;
+		case "cr3": return 11;
+		case "cr4": return 12;
+		case "stack": return 20;
+		case "tr1": return 21;
+		case "tr2": return 22;
+		case "tr3": return 23;
+		case "tr4": return 24;
+		case "pnni": return 25;
+		case "gpioi": return 26;
+		case "bwioi": return 27;
+		case "eti": return 28;
+		case "exi": return 29;
+		case "pnn1": return 30;
+		case "pnn2": return 31;
+		case "pnn3": return 32;
+		case "pnn4": return 33;
+		case "gpio1": return 34;
+		case "gpio2": return 35;
+		case "gpio3": return 36;
+		case "gpio4": return 37;
+		case "bwio1": return 38;
+		case "bwio2": return 39;
+		case "bwio3": return 40;
+		case "bwio4": return 41;
+		case "bwio5": return 42;
+		case "bwio6": return 43;
+		case "bwio7": return 44;
+		case "bwio8": return 45;
+		case "bwio9": return 46;
+		case "bwio10": return 47;
+		case "bwio11": return 48;
+		case "bwio12": return 49;
+		case "bwio13": return 50;
+		case "bwio14": return 51;
+		case "bwio15": return 52;
+		case "bwio16": return 53;
+		}
+		if (isNumber(reg)) {
+			return Integer.parseInt(reg) - 1000;
+		}
+		return -1;
 	}
 }

@@ -18,11 +18,30 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Helpers {
 
+	public static ActionListener getDebugButtonActionListener(JTextPane text, JTextField name) {
+		return new ActionListener() {
+			
+			public void actionPerformed(ActionEvent e) {
+				String data = Assembler.resolve(text.getText(), name.getText());
+				if (data == null) {
+					return;
+				}
+				Thread t = new Thread() {
+					
+					public void run() {
+						Debugger.start(data);
+					}
+				};
+				t.start();
+			}
+		};
+	}
+	
 	public static ActionListener getAssembleButtonActionListener(JTextPane text, JTextField name) {
 		return new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
-				Resolver.resolve(text.getText(), name.getText());
+				Assembler.resolve(text.getText(), name.getText());
 			}
 		};
 	}
@@ -55,8 +74,8 @@ public class Helpers {
 		return new ActionListener() {
 			
 			public void actionPerformed(ActionEvent e) {
-				Assembler.darkMode = !Assembler.darkMode;
-				Assembler.init(Assembler.darkMode, panel, mode, text, pane, consolePane);
+				IDE.darkMode = !IDE.darkMode;
+				IDE.init(IDE.darkMode, panel, mode, text, pane, consolePane);
 			}
 		};
 	}
@@ -66,7 +85,22 @@ public class Helpers {
 
 			public void windowOpened(WindowEvent e) {}
 			public void windowClosing(WindowEvent e) {
-				Assembler.saveConfig();
+				IDE.saveConfig();
+			}
+			public void windowClosed(WindowEvent e) {}
+			public void windowIconified(WindowEvent e) {}
+			public void windowDeiconified(WindowEvent e) {}
+			public void windowActivated(WindowEvent e) {}
+			public void windowDeactivated(WindowEvent e) {}
+		};
+	}
+	
+	public static WindowListener getDebuggerWindowListener() {
+		return new WindowListener() {
+
+			public void windowOpened(WindowEvent e) {}
+			public void windowClosing(WindowEvent e) {
+				Debugger.debugging = false;
 			}
 			public void windowClosed(WindowEvent e) {}
 			public void windowIconified(WindowEvent e) {}
@@ -80,15 +114,15 @@ public class Helpers {
 		return new DocumentListener() {
 
 			public void insertUpdate(DocumentEvent e) {
-				Assembler.hasChanged = true;
+				IDE.hasChanged = true;
 			}
 
 			public void removeUpdate(DocumentEvent e) {
-				Assembler.hasChanged = true;
+				IDE.hasChanged = true;
 			}
 
 			public void changedUpdate(DocumentEvent e) {
-				Assembler.hasChanged = true;
+				IDE.hasChanged = true;
 			}
 		};
 	}

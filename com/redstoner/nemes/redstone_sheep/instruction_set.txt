@@ -60,12 +60,12 @@ FMULWF     1011 1dff ffff ff1x      Multiply float F by float W
 FDIVWF     1100 0dff ffff ff1x      Divide float F by float W
 FPTINT     1100 1dff ffff ff1s      Convert float F to integer
 INTTFP     1101 0dff ffff ff1s      Convert integer F to float
-FCOMPWF    1101 1xxx xxxx xx1x      Compare float F with float W
+FCOMPWF    1101 1dff ffff ff1x      Compare float F with float W
 
 --BCX (Basic Compute Extensions)
 MULWF      1000 sdff ffff ff01      Multiply F by W
 DIVWF      1001 sdff ffff ff01      Divide F by W, remainder will be saved into BX
-BOOL       1010 sdff ffff ff01      Save FLAGS as a boolean
+BOOL       1010 xdff ffff ff01      Save FLAGS as a boolean
 STO        1011 ppkk kkkk kk01      Set translation offset
 SHFTRN     1100 xdff ffff ff01      Shift F right by W
 SHFTLN     1101 xdff ffff ff01      Shift F left by W
