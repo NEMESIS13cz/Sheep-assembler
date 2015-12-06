@@ -14,7 +14,7 @@ mnemonic       instruction          description
 --base IS
 ADDWF      0001 11df ffff fffs      Add W and F
 ANDWF      0001 01df ffff fffx      AND W with F
-CLRF       0000 011f ffff fffx      Clear F
+CLRF       0000 011f ffff fffd      Clear F
 CLRW       0000 010x xxxx xxxx      Clear W
 COMF       0010 01df ffff fffs      Complement F
 DECF       0000 11df ffff fffs      Decrement F
@@ -22,11 +22,11 @@ DECFSZ     0010 11df ffff fffs      Decrement F, skip next instr if 0
 INCF       0010 10df ffff fffs      Increment F
 INCFSZ     0011 11df ffff fffs      Increment F, skip next instr if 0
 IORWF      0001 00df ffff fffx      Inclusive OR W with F
-MOVF       0010 00df ffff fffx      Move F
+MOVF       0010 00df ffff fffx      Move F to W
 MOVWF      0000 001f ffff fffd      Move W to F
 NOP        0000 000x x000 000x      No operation
-RLF        0011 01df ffff fffx      Shift F left through Carry Flag
-RRF        0011 00df ffff fffx      Shift F right through Carry Flag
+RLF        0011 01df ffff fffx      Shift F left
+RRF        0011 00df ffff fffx      Shift F right
 SUBWF      0000 10df ffff fffs      Subtract W from F
 SWAPF      0011 10df ffff fffx      Swap bytes in F
 XORWF      0001 10df ffff fffx      Exclusive OR W with F
@@ -87,20 +87,20 @@ REGISTERS:
 f ∈ 0-255
   RAM
 W register
-f ∈ 0-7 General Purpose Registers
+f ∈ 1-8 General Purpose Registers
   AX (Accumulator), BX (Base), CX (Counter), DX (Data), R5, R6, R7, R8
-f ∈ 8-11 Dedicated counter registers
+f ∈ 9-12 Control registers
   CR1, CR2, CR3, CR4
-f ∈ 12-18
+f ∈ 13-19
   FLAGS (flags registers)
-  F > W, F < W, F == W, HDD_done_seeking, F > W (float), F < W (float), F == W (float)
-f = 19
+  F > W, F == W, F < W, HDD_done_seeking, F > W (float), F == W (float), F < W (float)
+f = 20
   Stack register
-f ∈ 20-23 Timer registers
+f ∈ 21-24 Timer registers
   TR1, TR2, TR3, TR4
-f ∈ 24-28 Interrupt GOTO registers *
+f ∈ 25-29 Interrupt GOTO registers *
   PNN (Pan-net port - 4 I/O), GPIO (General purpose I/O - 4 I/O), BWIO (Bit-wise I/O - 16 I/O), ETI (External thread interrupt - from other cores), EXI (Exception interrupt - caused in code)
-f ∈ 29-52  I/O ports
+f ∈ 30-53  I/O ports
   Pan-net  - PNN1, PNN2, PNN3, PNN4 (29-32)
   General  - GPIO1, GPIO2, GPIO3, GPIO4 (IN - 33-36)
   Bit-wise - BWIO1, BWIO2, BWIO3, BWIO4, BWIO5, BWIO6, BWIO7, BWIO8, BWIO9, BWIO10, BWIO11, BWIO12, BWIO13, BWIO14, BWIO15, BWIO16 (37-52)
@@ -124,4 +124,45 @@ mnemonic     ID     cause
 #AUF         1      ALU underflow
 #MOF         2      memory overflow
 #SOF         3      stack overflow
-#DBZ         4      division by zero
+#SUF         4      stack underflow
+#DBZ         5      division by zero
+
+*************************** INSTRUCTION DESCRIPTIONS ***************************
+
+ = ADDWF
+
+Adds values in register W with a memory or register address (bits 1-9), result is placed into W. Sign is determined by bit 0.
+
+ = ANDWF
+
+Performs a logical AND operation on values in register W with a memory or register address (bits 1-9), result is placed into W. Sign is determined by bit 0.
+
+ = CLRF
+
+Sets a memory or register address (bits 1-9) to 0x0000.
+
+ = CLRW
+
+Sets register W to 0x0000.
+
+ = COMF
+
+Performs a complement on memory or register address (bits 1-9). 2's complement if bit 0 is set, otherwise 1's complement.
+
+ = DECF
+
+Decrements the value in memory or register address (bits 1-9). Sign is determined by bit 0.
+
+
+
+
+
+
+
+
+
+
+
+
+
+

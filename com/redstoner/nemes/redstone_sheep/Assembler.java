@@ -301,7 +301,9 @@ public class Assembler {
 				}else if (first.equals(Instruction.BCF.toString())) {
 					int addr = translateRegister(arg1);
 					boolean register = addr > -1;
-					if (!register) addr += 1000;
+					if (!register) {
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BCF.toString() + ": address can only refer to registers!");
+					}
 					if (addr != -1 && !register) {
 						if (isInRange(addr, EnumSize.BITSIZE_8)) {
 							if (isNumber(arg2) && isInRange(parseNumber(arg2), EnumSize.BITSIZE_4)) {
@@ -319,7 +321,9 @@ public class Assembler {
 				}else if (first.equals(Instruction.BSF.toString())) {
 					int addr = translateRegister(arg1);
 					boolean register = addr > -1;
-					if (!register) addr += 1000;
+					if (!register) {
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BCF.toString() + ": address can only refer to registers!");
+					}
 					if (addr != -1 && !register) {
 						if (isInRange(addr, EnumSize.BITSIZE_8)) {
 							if (isNumber(arg2) && isInRange(parseNumber(arg2), EnumSize.BITSIZE_4)) {
@@ -337,7 +341,9 @@ public class Assembler {
 				}else if (first.equals(Instruction.BTFSC.toString())) {
 					int addr = translateRegister(arg1);
 					boolean register = addr > -1;
-					if (!register) addr += 1000;
+					if (!register) {
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BCF.toString() + ": address can only refer to registers!");
+					}
 					if (addr != -1 && !register) {
 						if (isInRange(addr, EnumSize.BITSIZE_8)) {
 							if (isNumber(arg2) && isInRange(parseNumber(arg2), EnumSize.BITSIZE_4)) {
@@ -355,7 +361,9 @@ public class Assembler {
 				}else if (first.equals(Instruction.BTFSS.toString())) {
 					int addr = translateRegister(arg1);
 					boolean register = addr > -1;
-					if (!register) addr += 1000;
+					if (!register) {
+						throw new BuildException("line " + (i + 1) + " " + Instruction.BCF.toString() + ": address can only refer to registers!");
+					}
 					if (addr != -1 && !register) {
 						if (isInRange(addr, EnumSize.BITSIZE_8)) {
 							if (isNumber(arg2) && isInRange(parseNumber(arg2), EnumSize.BITSIZE_4)) {
@@ -901,7 +909,7 @@ public class Assembler {
 		IDE.println(compiled_);
 		IDE.println("Done assembling...");
 		IDE.println("Using BCX: " + usingBCX);
-		IDE.println("Using FPX: " + usingFPX);
+		IDE.println("Using FPX:  " + usingFPX);
 		IDE.println("Using MCX: " + usingMCX);
 		IDE.println("Total size: \n    " + size + " bytes (" + (size / 2) + " addresses)");
 		IDE.println("Finished in " + (done - begin) + "ns (" + ((done - begin) / 1000000) + "ms)");
@@ -985,6 +993,13 @@ public class Assembler {
 		case "cr2": return 10;
 		case "cr3": return 11;
 		case "cr4": return 12;
+		case "i>": return 13;
+		case "i=": return 14;
+		case "i<": return 15;
+		case "hddf": return 16;
+		case "f>": return 17;
+		case "f=": return 18;
+		case "f<": return 19;
 		case "stack": return 20;
 		case "tr1": return 21;
 		case "tr2": return 22;

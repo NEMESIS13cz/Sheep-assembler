@@ -40,8 +40,14 @@ public class Debugger extends JPanel {
 		frame.setVisible(true);
 		
 		while (true) {
-			panel.repaint();
+			Memory mem = new Memory(data);
+			Core c0 = new Core(mem);
+			Core c1 = new Core(mem);
+			c0.enable();
 			
+			update(c0, c1);
+
+			panel.repaint();
 			try {
 				Thread.sleep(50);
 			} catch (InterruptedException e) {
@@ -50,8 +56,9 @@ public class Debugger extends JPanel {
 		}
 	}
 	
-	public void update() {
-		
+	public static void update(Core c0, Core c1) {
+		c0.tick();
+		c1.tick();
 	}
 	
 	public void paint(Graphics g) {
