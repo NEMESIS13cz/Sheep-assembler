@@ -38,7 +38,7 @@ ADDLW      1111 1xkk kkkk kk0s      Add 8 bit literal and W
 ANDLW      1110 01kk kkkk kk0x      AND literal and W
 CALL       100k kkkk kkkx xx01      Call subroutine
 CLRWDT     0000 0001 1001 00xx      Clear Watchdog Timer
-GOTO       101k kkkk kkkx xx0x      Go to address
+GOTO       101x xxkk kkkk kk0x      Go to address
 IORLW      1110 00kk kkkk kk0x      Inclusive OR literal and W
 MOVLW      1100 xxkk kkkk kk0x      Move literal to W
 RETFIE     0000 0000 0010 01xx      Return from interrupt
